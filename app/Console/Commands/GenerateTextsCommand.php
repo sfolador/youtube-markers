@@ -23,6 +23,8 @@ class GenerateTextsCommand extends Command
 
     protected Video $video;
 
+    protected string $model ='claude-3-5-sonnet-latest';//'claude-3-5-haiku-latest'; //'claude-3-5-sonnet-latest';
+
     public function handle()
     {
         $videoId = $this->argument('video_id');
@@ -59,15 +61,21 @@ class GenerateTextsCommand extends Command
             }
 
 
+            logger()->info('Arguments and description generated:', [
+                'arguments' => $arguments,
+                'description' => $description
+            ]);
+
+
+
+
             $timestampText = "";
             foreach ($arguments as $argument) {
+                if (!is_array($argument)){
+                    $argument = (array) $argument;
+                }
                 $timestampText .= "{$argument['timestamp']} - {$argument['title']}\n";
             }
-//
-//            $this->info("Calling YouTube API");
-//            // Set YouTube markers
-//            $this->setYouTubeMarkers($arguments,$description);
-
 
             $this->video->description = $description . "\n\n" .  $timestampText;
             $this->video->status = VideoStatus::DescriptionReady;
@@ -95,12 +103,12 @@ class GenerateTextsCommand extends Command
         $assistantMessage = new AssistantMessage(content: "here is the JSON:");
 
         $response =  Prism::text()
-            ->using(Provider::Anthropic, 'claude-3-5-sonnet-latest')
+            ->using(Provider::Anthropic, $this->model)
             ->withMessages([$userMessage,$assistantMessage])
             ->withSystemPrompt("You are an expert at analyzing video transcripts and identifying main arguments.
              Always return your response in valid JSON format with an array of objects containing 'title' and 'timestamp' keys.
-             The title must be in the srt language.
-             The JSON must be in this form:
+             The title MUST be in the srt language.
+             The JSON MUST be in this form:
              [
                 {
                     \"title\": \"Argument 1\",
@@ -114,6 +122,7 @@ class GenerateTextsCommand extends Command
             ->generate();
 
 
+
         return json_decode(Str::trim($response->text));
 
     }
@@ -121,7 +130,7 @@ class GenerateTextsCommand extends Command
     protected function generateDescription(string $srtContent): string
     {
         $response =  Prism::text()
-            ->using(Provider::Anthropic, 'claude-3-5-sonnet-latest')
+            ->using(Provider::Anthropic, $this->model)
             ->withPrompt("From this SRT file, generate a description for the video. The description must be in the same language as the SRT file. Here's the SRT content:\n\n{$srtContent}")
             ->withSystemPrompt("You are an expert at analyzing video transcripts and identifying main arguments. Do not talk in third person, use the I form. Be concise and clear and friendly.
              Always return your response in the same language as the SRT file. The response must be in Markdown compatible with YouTube. Just return the description without anything else. ")
@@ -132,77 +141,7 @@ class GenerateTextsCommand extends Command
         return Str::trim($response->text);
     }
 
-    /**
-     * Set markers in YouTube video using API
-     * @throws \Google\Exception
-     */
-    protected function setYouTubeMarkers(array $arguments,string $description): void
-    {
-        $client = new Client();
-        $client->setAuthConfig(Storage::path('google-credentials.json'));
-        $client->setDeveloperKey(config('services.google.api_key')); // Add this line
-
-        $client->addScope(\Google_Service_YouTube::YOUTUBE_FORCE_SSL);
-
-        // Load previously stored access token
-        if (Storage::exists('google-access-token.json')) {
-            $accessToken = json_decode(Storage::get('google-access-token.json'), true);
-            $client->setAccessToken($accessToken);
-        }
-
-        // If token is expired, refresh it
-        if ($client->isAccessTokenExpired() &&  Storage::exists('google-refresh-token.json')) {
-            $client->fetchAccessTokenWithRefreshToken(Storage::get('google-refresh-token.json'));
-            Storage::put('google-access-token.json', json_encode($client->getAccessToken()));
-        }
-
-        $youtube = new \Google_Service_YouTube($client);
 
 
-        try {
-            // Get current video details
-            $video = $youtube->videos->listVideos('snippet', ['id' => $this->video->youtube_id]);
 
-            if (empty($video->items)) {
-                throw new Exception('Video not found');
-            }
-
-            $videoSnippet = $video->items[0]->getSnippet();
-
-
-            // Format timestamps for YouTube
-            $timestampText = "";
-            foreach ($arguments as $argument) {
-                $timestampText .= "{$argument['timestamp']} - {$argument['title']}\n";
-            }
-
-            // Combine existing description with timestamps
-            $newDescription = $description . "\n\n" .  $timestampText;
-
-            // Create update request
-            $updateVideo = new \Google_Service_YouTube_Video();
-            $updateVideo->setId($this->videoId);  // Add video ID
-
-            $videoSnippet->setDescription($newDescription);
-            $updateVideo->setSnippet($videoSnippet);
-
-            $youtube->videos->update('snippet', $updateVideo);
-
-        } catch (Exception $e) {
-            logger()->error('Failed to update YouTube video:', [
-                'error' => $e->getMessage(),
-                'videoId' => $this->videoId,
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Convert SRT timestamp format (00:00:00,000) to seconds
-     */
-    protected function convertTimeToSeconds(string $timestamp): int
-    {
-        $parts = explode(':', str_replace(',', '.', $timestamp));
-        return $parts[0] * 3600 + $parts[1] * 60 + (int)$parts[2];
-    }
 }
