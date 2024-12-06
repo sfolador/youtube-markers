@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Console\Commands;
 
+use App\Enums\VideoStatus;
+use App\Jobs\ProcessVideoMarkersJob;
 use App\Models\Video;
 use EchoLabs\Prism\Enums\Provider;
 use EchoLabs\Prism\Prism;
@@ -9,37 +11,23 @@ use EchoLabs\Prism\ValueObjects\Messages\AssistantMessage;
 use EchoLabs\Prism\ValueObjects\Messages\UserMessage;
 use Exception;
 use Google\Client;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class ProcessVideoMarkersJob implements ShouldQueue
+class GenerateTextsCommand extends Command
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    protected $signature = 'video:generate-texts {video_id}';
 
+    protected $description = 'Command description';
 
     protected Video $video;
-    protected int $maxRetries = 3;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(Video $video)
+    public function handle()
     {
-        $this->video = $video;
+        $videoId = $this->argument('video_id');
+        $this->video = Video::find($videoId);
 
-    }
-
-    /**
-     * Execute the job.
-     */
-    public function handle(): void
-    {
         try {
 
             $videoFilename = $this->video->filename;
@@ -56,26 +44,36 @@ class ProcessVideoMarkersJob implements ShouldQueue
             // Get arguments from Claude
             $arguments = $this->getArgumentsFromClaude($srtContent);
 
-           try{
+            try{
 
-               $this->info("Generating description");
-               $description = $this->generateDescription($srtContent);
-           }catch (Exception $e){
+                $this->info("Generating description");
+                $description = $this->generateDescription($srtContent);
+            }catch (Exception $e){
                 logger()->error('Video marker processing failed:', [
-                     'error' => $e->getMessage(),
-                     'videoId' => $this->video->youtube_id,
-                     'srtPath' => $srtFilename
+                    'error' => $e->getMessage(),
+                    'videoId' => $this->video->youtube_id,
+                    'srtPath' => $srtFilename
                 ]);
 
                 throw $e;
-           }
+            }
 
 
-            $this->info("Calling YouTube API");
-            // Set YouTube markers
-            $this->setYouTubeMarkers($arguments,$description);
+            $timestampText = "";
+            foreach ($arguments as $argument) {
+                $timestampText .= "{$argument['timestamp']} - {$argument['title']}\n";
+            }
+//
+//            $this->info("Calling YouTube API");
+//            // Set YouTube markers
+//            $this->setYouTubeMarkers($arguments,$description);
 
-            $this->info("Description and chapters set on Youtube, check the video at https://youtube.com/watch?v={$this->video->youtube_id}");
+
+            $this->video->description = $description . "\n\n" .  $timestampText;
+            $this->video->status = VideoStatus::DescriptionReady;
+            $this->video->save();
+
+            $this->info("Description and chapters saved");
 
         } catch (Exception $e) {
             logger()->error('Video marker processing failed:', [
@@ -163,7 +161,7 @@ class ProcessVideoMarkersJob implements ShouldQueue
 
         try {
             // Get current video details
-            $video = $youtube->videos->listVideos('snippet', ['id' => $this->videoId]);
+            $video = $youtube->videos->listVideos('snippet', ['id' => $this->video->youtube_id]);
 
             if (empty($video->items)) {
                 throw new Exception('Video not found');

@@ -9,4 +9,6 @@ enum VideoStatus: string
     case AudioExtracted = 'audio_extracted';
 
     case DescriptionReady = 'description_ready';
+
+    case YoutubeUpdated = 'youtube_updated';
 }

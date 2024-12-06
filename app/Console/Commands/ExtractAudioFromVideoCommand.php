@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\PrepareFfmpeg;
+use App\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
@@ -13,6 +14,8 @@ class ExtractAudioFromVideoCommand extends Command
 
     protected $description = 'Command description';
 
+    protected Video $video;
+
     public function handle(): void
     {
         try {
@@ -22,7 +25,8 @@ class ExtractAudioFromVideoCommand extends Command
             return;
         }
 
-        $videoFilename = Video::find($this->argument('video_id'))->filename;
+        $this->video =  Video::find($this->argument('video_id'));
+        $videoFilename =   $this->video->filename;
         $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
 
         $videoFile  = \Storage::path($videoFilename);
@@ -35,6 +39,10 @@ class ExtractAudioFromVideoCommand extends Command
             $this->error($result->errorOutput());
             return;
         }
+
+
+        $this->video->status = VideoStatus::AudioExtracted;
+        $this->video->save();
 
         $this->info('Audio extracted successfully');
     }
