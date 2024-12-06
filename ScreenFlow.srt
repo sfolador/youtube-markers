@@ -1,0 +1,84 @@
+1
+00:00:00,000 --> 00:00:13,200
+Eccoci, buongiorno, questo è il primo video su Laravel ed è tratteremo un argomento
+
+2
+00:00:13,200 --> 00:00:25,040
+abbastanza interessante, cioè uniremo l'utilizzo di modelli di intelligenza artificiale con
+
+3
+00:00:25,040 --> 00:00:33,640
+la creazione di un comando sulla Laravel che ci permette di analizzare un video, un mp4,
+
+4
+00:00:33,640 --> 00:00:43,840
+di estrapolare da questo un testo, raccogliere il testo in formato SRT, quello tipico dei
+
+5
+00:00:43,840 --> 00:00:53,400
+sottotitoli dei film che tipicamente si trovano trovate online, e con un comando apposito,
+
+6
+00:00:53,400 --> 00:01:00,960
+inviare questo file a un modello di intelligenza artificiale per far sì che questo modello
+
+7
+00:01:00,960 --> 00:01:10,080
+organizzi questi sottotitoli e proponga 3 o 4 momenti principali del video, i capitoli
+
+8
+00:01:10,080 --> 00:01:23,680
+del video e via, e di segui e successivamente invi a Google, via API, a YouTube, via API,
+
+9
+00:01:23,680 --> 00:01:30,560
+i capitoli generati. Ecco, quindi questo è diciamo una breve introduzione. Come facciamo?
+
+10
+00:01:30,560 --> 00:01:38,840
+Prima cosa dobbiamo avere installato Laravel. Come seconda cosa iniziamo a scrivere questo
+
+11
+00:01:38,840 --> 00:01:51,560
+nostro job, che tipicamente sarà un job che verrà eseguito in background. Cosa fa questo
+
+12
+00:01:51,560 --> 00:01:58,800
+job? Guardiamolo insieme. Per prima cosa otterrà il contenuto del file SRT, quindi quello dei
+
+13
+00:01:58,800 --> 00:02:08,600
+sottotitoli. A questo punto genererà gli argomenti del video tramite Cloud, quindi tramite API di
+
+14
+00:02:08,600 --> 00:02:20,640
+Cloud, e in seguito creerà i marker su YouTube. Quindi sono necessarie due integrazioni. La prima
+
+15
+00:02:20,640 --> 00:02:30,320
+con i servizi di Anthropic, e questi vengono invocati tramite queste chiamate API. Sicuramente
+
+16
+00:02:30,320 --> 00:02:38,880
+ci sono servizi o librerie più semplici da utilizzare. Si può usare anche OpenAI tranquillamente
+
+17
+00:02:38,880 --> 00:02:45,640
+utilizzando le stesse identiche cose. E poi invece per quanto riguarda YouTube bisogna creare tutta
+
+18
+00:02:45,640 --> 00:02:53,720
+una serie di credenziali su Google Cloud, che guarderemo insieme, e a quel punto verranno invocate
+
+19
+00:02:53,720 --> 00:03:05,400
+l'API per cambiare i chapter del video. E tutto qui. Quello che ci troveremo poi sarà un video che
+
+20
+00:03:05,400 --> 00:03:22,200
+avrà, diciamo, come capitoli, che avrà i capitoli fatti in questo modo, per cui organizzati in modo
+
+21
+00:03:22,200 --> 00:03:22,760
+temporale.
+
