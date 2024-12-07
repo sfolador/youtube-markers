@@ -7,6 +7,8 @@ use App\Jobs\ProcessVideoMarkersJob;
 use App\Models\Video;
 use EchoLabs\Prism\Enums\Provider;
 use EchoLabs\Prism\Prism;
+use EchoLabs\Prism\Schema\ObjectSchema;
+use EchoLabs\Prism\Schema\StringSchema;
 use EchoLabs\Prism\ValueObjects\Messages\AssistantMessage;
 use EchoLabs\Prism\ValueObjects\Messages\UserMessage;
 use Exception;
@@ -45,6 +47,7 @@ class GenerateTextsCommand extends Command
             $this->info("Generating chapters");
             // Get arguments from Claude
             $arguments = $this->getArgumentsFromClaude($srtContent);
+
 
             try{
 
@@ -102,9 +105,21 @@ class GenerateTextsCommand extends Command
         $userMessage = new UserMessage(content: "From this SRT file, detect the main arguments and their timestamps. Detect maximum 10 arguments and propose only a reasonable number of them. Return them in a JSON format with title and timestamp. Here's the SRT content:\n\n{$srtContent}");
         $assistantMessage = new AssistantMessage(content: "here is the JSON:");
 
-        $response =  Prism::text()
+        $schema = new ObjectSchema(
+            name: 'chapter',
+            description: 'A structured chapter',
+            properties: array(
+                new StringSchema('title', 'The chapter title'),
+                new StringSchema('timestamp', 'the timestamp of the chapter, like 00:10'),
+            ),
+            requiredFields: ['title', 'timestamp']
+        );
+
+
+        $response =  Prism::structured()
             ->using(Provider::Anthropic, $this->model)
             ->withMessages([$userMessage,$assistantMessage])
+            ->withSchema($schema)
             ->withSystemPrompt("You are an expert at analyzing video transcripts and identifying main arguments.
              Always return your response in valid JSON format with an array of objects containing 'title' and 'timestamp' keys.
              The title MUST be in the srt language.
