@@ -14,7 +14,8 @@ return new class extends Migration {
             $table->longText('transcription')->nullable();
             $table->string('status');
             $table->string('description')->nullable();
-            $table->string('youtube_id');
+            $table->string('youtube_id')->nullable();
+            $table->string('category')->nullable();
             $table->timestamps();
         });
     }

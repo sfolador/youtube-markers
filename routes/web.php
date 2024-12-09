@@ -49,17 +49,7 @@ Route::get('/', function (Request $request) {
 
 
 
-Route::get('openai',function(){
-
-    $srtContent = Storage::get('ScreenFlow.srt');
-
-   $response =  \EchoLabs\Prism\Prism::text()
-       ->using(Provider::Anthropic, 'claude-3-5-sonnet-latest')
-        ->withPrompt("From this SRT file, generate a description for the video. The description must be in the same language as the SRT file. Here's the SRT content:\n\n{$srtContent}")
-        ->withSystemPrompt("You are an expert at analyzing video transcripts and identifying main arguments. Do not talk in third person, use the I form. Be concise and clear and friendly.
-             Always return your response in the same language as the SRT file. The response must be in Markdown compatible with YouTube. Just return the description without anything else. ")
-        ->withMaxTokens(300)
-       ->generate();
-
-    dd($response);
+Route::get('create-video',function(){
+    logger("asdaa");
+    \App\Events\VideoCreatedEvent::dispatch(\App\Models\Video::find(1));
 });

@@ -29,7 +29,7 @@ class PrepareFfmpeg
 
 
             if ($result->failed()) {
-                throw new \Exception('Error installing ffmpeg');
+                throw new \Exception($result->errorOutput());
             }
         }
 
