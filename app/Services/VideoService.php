@@ -27,6 +27,8 @@ class VideoService
 {
     private string $model = 'claude-3-5-sonnet-latest';
 
+    const DEFAULT_AUDIO_EXTENSION = 'wav';
+
     /**
      * @throws \Exception
      */
@@ -35,11 +37,9 @@ class VideoService
 
         PrepareFfmpeg::execute();
 
-        $videoFilename = $video->filename;
-        $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
 
-        $videoFile = \Storage::path($videoFilename);
-        $audioFile = \Storage::path(str_replace($ext, 'wav', $videoFilename));
+        $videoFile = \Storage::path($video->filename);
+        $audioFile = \Storage::path($this->generateAudioFilename($video->filename));
 
         $result = Process::run("ffmpeg -i $videoFile  -acodec pcm_s16le -ac 1 -ar 16000 $audioFile");
 
@@ -58,20 +58,14 @@ class VideoService
     /**
      * @throws \Exception
      */
-    public function transcribeAudio($video): Video
+    public function transcribeAudio(Video $video): Video
     {
         PrepareMlxWhisper::execute();
 
-        $videoFilename = $video->filename;
 
+        $audioFilename = \Storage::path($this->generateAudioFilename($video->filename));
 
-        //get the extension of the video file
-        $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
-
-        //remove the extension and put wav
-        $audioFile = \Storage::path(str_replace($ext, 'wav', $videoFilename));
-
-        $mlxCommand = "mlx_whisper $audioFile --model \"mlx-community/whisper-medium-mlx\" --output-format srt ";
+        $mlxCommand = "mlx_whisper $audioFilename --model \"mlx-community/whisper-medium-mlx\" --output-format srt --output-dir " . storage_path('app/private');
 
         $result = Process::tty()->run([
             '/bin/bash',
@@ -85,38 +79,27 @@ class VideoService
         }
 
 
-        $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
-        $srtFilename = str_replace($ext, 'srt', $videoFilename);
+        $srtFilename = $this->generateSubtitlesFilename($video->filename);
 
         // Read and parse SRT file
-        $srtContent = Storage::get($srtFilename);
-        if (!$srtContent) {
-            throw new Exception("SRT file not found at path: {$srtFilename}");
-        }
+        $srtContent = $this->getContentsOfSubtitleFile($srtFilename);
 
-        $video->transcription = $srtContent;
-
-        $video->status = VideoStatus::AudioTranscribed;
-        $video->save();
+        $video->addTranscription($srtContent);
 
         AudioTranscribedEvent::dispatch($video);
         return $video;
     }
+
 
     public function generateVideoTexts(Video $video): Video
     {
 
         try {
 
-            $videoFilename = $video->filename;
-            $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
-            $srtFilename = str_replace($ext, 'srt', $videoFilename);
+            $srtFilename = $this->generateSubtitlesFilename($video->filename);
 
             // Read and parse SRT file
-            $srtContent = Storage::get($srtFilename);
-            if (!$srtContent) {
-                throw new Exception("SRT file not found at path: {$srtFilename}");
-            }
+            $srtContent = $this->getContentsOfSubtitleFile($srtFilename);
 
             // Get arguments from Claude
             $chapters = $this->getChapters($srtContent);
@@ -150,9 +133,7 @@ class VideoService
                 $timestampText .= "{$chapter['timestamp']} - {$chapter['title']}\n";
             }
 
-            $video->description = $description . "\n\n" . $timestampText;
-            $video->status = VideoStatus::DescriptionReady;
-            $video->save();
+            $video->addDescription($description . "\n\n" . $timestampText);
 
 
         } catch (Exception $e) {
@@ -230,5 +211,34 @@ class VideoService
         $video->save();
 
         VideoUpdatedEvent::dispatch($video);
+    }
+
+    protected function getFileExtension(string $filename): string
+    {
+        return pathinfo($filename, PATHINFO_EXTENSION);
+    }
+
+    protected function generateAudioFilename(string $videoFilename): string
+    {
+
+        $ext = $this->getFileExtension($videoFilename);
+        return str_replace($ext, self::DEFAULT_AUDIO_EXTENSION, $videoFilename);
+    }
+
+    protected function generateSubtitlesFilename(string $audioFilename): string
+    {
+        $ext = $this->getFileExtension($audioFilename);
+        return str_replace($ext, 'srt', $audioFilename);
+    }
+
+    /**
+     * @throws Exception
+     */
+    protected function getContentsOfSubtitleFile(string $filename): string
+    {
+        if (!Storage::exists($filename)) {
+            throw new Exception("SRT file not found at path: {$filename}");
+        }
+        return Storage::get($filename);
     }
 }

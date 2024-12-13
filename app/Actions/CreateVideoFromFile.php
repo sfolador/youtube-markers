@@ -11,11 +11,11 @@ class CreateVideoFromFile
     /**
      * @throws \Exception
      */
-    public static function execute($filename): Video
+    public static function execute(string $filename, string $title): Video
     {
 
         $video = new Video();
-        $video->title = $filename;
+        $video->title = $title;
         $video->filename = $filename;
         $video->status = VideoStatus::New;
         $video->save();

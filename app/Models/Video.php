@@ -13,4 +13,22 @@ class Video extends Model
     protected $casts = [
         'status' => VideoStatus::class
     ];
+
+    public function addTranscription(string $transcription): self
+    {
+        $this->transcription = $transcription;
+        $this->status = VideoStatus::AudioTranscribed;
+        $this->save();
+
+        return $this;
+    }
+
+    public function addDescription(string $description): self
+    {
+        $this->description = $description;
+        $this->status = VideoStatus::DescriptionReady;
+        $this->save();
+
+        return $this;
+    }
 }

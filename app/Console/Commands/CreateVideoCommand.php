@@ -9,6 +9,7 @@ use App\Jobs\ProcessVideoMarkersJob;
 use App\Jobs\UploadVideoJob;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
+use function Laravel\Prompts\text;
 
 class CreateVideoCommand extends Command
 {
@@ -21,7 +22,9 @@ class CreateVideoCommand extends Command
      */
     public function handle(): void
     {
-        $video = CreateVideoFromFile::execute($this->argument('filename'));
+        $this->info("Hi! Let's create a new video!");
+        $title = text('Enter the title of the video');
+        $video = CreateVideoFromFile::execute($this->argument('filename'),$title);
 
         VideoCreatedEvent::dispatch($video);
 
