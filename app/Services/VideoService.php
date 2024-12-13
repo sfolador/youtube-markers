@@ -84,7 +84,7 @@ class VideoService
             throw new \Exception($result->errorOutput());
         }
 
-        $videoFilename = $video->filename;
+
         $ext = pathinfo($videoFilename, PATHINFO_EXTENSION);
         $srtFilename = str_replace($ext, 'srt', $videoFilename);
 
@@ -103,7 +103,7 @@ class VideoService
         return $video;
     }
 
-    public function generateVideoTexts(Video $video)
+    public function generateVideoTexts(Video $video): Video
     {
 
         try {

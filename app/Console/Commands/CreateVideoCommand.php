@@ -16,6 +16,9 @@ class CreateVideoCommand extends Command
 
     protected $description = 'Command description';
 
+    /**
+     * @throws \Exception
+     */
     public function handle(): void
     {
         $video = CreateVideoFromFile::execute($this->argument('filename'));

@@ -7,7 +7,6 @@ use App\Events\AudioTranscribedEvent;
 use App\Events\ChaptersDescriptionGeneratedEvent;
 use App\Events\VideoCreatedEvent;
 use App\Events\VideoUploadedEvent;
-use App\Facades\Videos;
 use App\Jobs\ExtractAudioFromVideoJob;
 use App\Jobs\GenerateVideoTextsJob;
 use App\Jobs\TranscribeAudioJob;
